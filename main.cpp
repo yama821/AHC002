@@ -32,6 +32,7 @@ struct State {
     string history;
     int score;
     int x, y;
+    int first_action = -1;
 
     State() {}
     
@@ -54,7 +55,7 @@ struct State {
     }
 
     // 可能な操作と得られるスコアの組を返す
-    vector<pair<int, int>> acceptedActions() {
+    vector<pair<int, int>> legalActions() {
         vector<pair<int, int>> ret;
         for (int d = 0; d < 4; d++) {
             if (isAccepted(d)) {
@@ -84,13 +85,15 @@ struct State {
     }
 
     bool isDone() {
-        auto vec = acceptedActions();
+        auto vec = legalActions();
         return vec.empty();
     }
 };
 
 struct Solver {
     State state;
+    int beam_width = 10;
+    int beam_depth = 100;
 
     Solver() {
         Tiles tiles;
@@ -98,22 +101,61 @@ struct Solver {
         state = State(tiles);
     }
 
+    int beamSearchAction() {
+        priority_queue<State> now_beam;
+        State best_state;
 
-    void solve() {
-        while (1) {
-            auto actions = state.acceptedActions();
-            if (actions.empty()) break;
+        now_beam.push(state);
+        for (int t = 0; t < beam_depth; t++) {
+            priority_queue<State> next_beam;
+            for (int i = 0; i < beam_width; i++) {
+                if (now_beam.empty()) break;
+                State now_state = now_beam.top();
+                now_beam.pop();
 
-            priority_queue<State> pq;
-            for (auto action: actions) {
-                auto nextstate = state;
-                nextstate.advance(action.first);
-                pq.push(nextstate);
+                auto legal_actions = now_state.legalActions();
+                if (legal_actions.empty()) next_beam.push(now_state);
+
+                for (auto &action: legal_actions) {
+                    State next_state = now_state;
+                    next_state.advance(action.first);
+                    if (t == 0) next_state.first_action = action.first;
+                    next_beam.push(next_state);
+                }
             }
 
-            state = pq.top();
-        }
+            now_beam = next_beam;
+            best_state = now_beam.top();
 
+            if (best_state.isDone()) {
+                // cout << "!!!!" << endl;
+                cout << t << " " << best_state.score << endl;
+                break;
+            }
+        }
+        return best_state.first_action;
+    }
+
+    int greedyAction() {
+        auto legal_actions = state.legalActions();
+        int best_score = 0, best_action = -1;
+        for (auto action: legal_actions) {
+            auto next_state = state;
+            next_state.advance(action.first);
+            if (best_score < next_state.score) {
+                best_score = next_state.score;
+                best_action = action.first;
+            }
+        }
+        return best_action;
+    }
+
+    void solve() {
+        while (!state.isDone()) {
+            int action = beamSearchAction();
+            state.advance(action);
+        }
+        
         cout << state.history << endl;
     }
 
