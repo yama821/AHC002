@@ -19,26 +19,26 @@ class Solver{
 
         void Start(){
             GetInput();
-            //vector<bool> temp;
-            //DFS(starti, startj, temp, 0, "");
+            vector<bool> temp(maxTileNum + 1, false);
+            DFS(starti, startj, temp, 0, "");
         }
 
         void GetInput(){
-            //cin >> starti >> startj;
-            // for (int i=0; i<50; i++){
-            //     for (int j=0; j<50; j++){
-            //         cin >> tileMap[i][j];
-            //         tileMap[i][j]--;
-            //         if (tileMap[i][j]>maxTileNum){
-            //             maxTileNum=tileMap[i][j];
-            //         }
-            //     }
-            // }
-            // for (int i=0; i<50; i++){
-            //     for (int j=0; j<50; j++){
-            //         cin >> scoreMap[i][j];
-            //     }
-            // }
+            cin >> starti >> startj;
+            for (int i=0; i<50; i++){
+                for (int j=0; j<50; j++){
+                    cin >> tileMap[i][j];
+                    tileMap[i][j]--;
+                    if (tileMap[i][j]>maxTileNum){
+                        maxTileNum=tileMap[i][j];
+                    }
+                }
+            }
+            for (int i=0; i<50; i++){
+                for (int j=0; j<50; j++){
+                    cin >> scoreMap[i][j];
+                }
+            }
         }
 
         void DFS(int nowi, int nowj, vector<bool> usedTile, int step, string route){
