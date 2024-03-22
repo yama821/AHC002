@@ -22,10 +22,10 @@ class Solver{
             vector<bool> temp(maxTileNum + 1, false);
             string s = "A";
             DFS(starti, startj, temp, 0, s);
-            GetOutput();
+            Output();
         }
         
-        void GetOutput(){
+        void Output(){
             ans.erase(0, 1);
             cout << ans << endl;
         }
