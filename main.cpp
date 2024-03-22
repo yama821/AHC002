@@ -1,167 +1,263 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-const int N = 50;
+class TimeKeeperDouble {
+ private:
+  std::chrono::high_resolution_clock::time_point start_time_;
+  double time_threshold_;
 
-/*
-    0 -> U, 1 -> D, 2 -> L, 3 -> R
-*/
-string opes = "UDLR";
+  double now_time_ = 0;
+
+ public:
+  // 時間制限をミリ秒単位で指定してインスタンスをつくる。
+  TimeKeeperDouble(const double time_threshold)
+      : start_time_(std::chrono::high_resolution_clock::now()),
+        time_threshold_(time_threshold) {}
+
+  // 経過時間をnow_time_に格納する。
+  void setNowTime() {
+    auto diff = std::chrono::high_resolution_clock::now() - this->start_time_;
+    this->now_time_ =
+        std::chrono::duration_cast<std::chrono::microseconds>(diff).count() *
+        1e-3;  // ms
+  }
+
+  // 経過時間をnow_time_に取得する。
+  double getNowTime() const { return this->now_time_; }
+
+  // インスタンス生成した時から指定した時間制限を超過したか判定する。
+  bool isTimeOver() const { return now_time_ >= time_threshold_; }
+};
+
+
+// 乱数を生成するクラス
+class Random {
+public:
+    std::mt19937 mt_;  // シード0でメルセンヌツイスターの乱数生成器を初期化
+    // 0以上1.0未満の実数の範囲の乱数生成
+    uniform_real_distribution<double> dd_{0, 1.0};
+
+    // seedを指定して初期化
+    Random(const int seed = 0) : mt_(std::mt19937(seed)) {}
+
+    // 0以上m未満の整数の範囲の乱数
+    inline int nextInt(const int m) {
+        uniform_int_distribution<int> di(0, m - 1);
+        return di(mt_);
+    }
+
+    // 0以上1.0未満の実数の範囲の乱数
+    inline double nextDouble() { return dd_(mt_); }
+
+    // 0以上1.0未満の実数の範囲の乱数のlog。焼きなまし法で使いやすい。
+    inline double nextLog() { return log(dd_(mt_)); }
+};
+
+Random rnd{};
+
+const int N = 50;
+const int M = 2500;
+int start_i, start_j;
+int tiles[51][51], points[51][51];
+
 int dx[4] = {-1, 1, 0, 0}, dy[4] = {0, 0, -1, 1};
 
-struct Tiles {
-    int si, sj;
-    int t[50][50], p[50][50];
+class dfsSolver {
+public:
+    array<bool, M> visited;
+    vector<pair<int, int>> path, best_path;
+    int score, best_score;
+    int remaining_search_cnt;
 
-    Tiles() {}
-    
-    void input() {
-        cin >> si >> sj;
-        for (int i = 0; i < N; i++) {
-            for (int j = 0; j < N; j++) cin >> t[i][j];
-        }
-        for (int i = 0; i < N; i++) {
-            for (int j = 0; j < N; j++) cin >> p[i][j];
-        }
-    }
-};
-
-struct State {
-    Tiles tiles;
-    set<int> visited;
-    string history;
-    int score;
-    int x, y;
-    int first_action = -1;
-
-    State() {}
-    
-    State(Tiles _tiles): tiles(_tiles), score(0) {
-        x = tiles.si;
-        y = tiles.sj;
-        visited.insert(tiles.t[x][y]);
-        score += tiles.p[x][y];
+    void start() {
+        best_path.clear();
+        score = 0;
+        visited.fill(0);
+        path.clear();
+        remaining_search_cnt = 4000;
+        dfs(start_i, start_j);
     }
 
-    // opes[d] 方向への移動が可能か判定
-    bool isAccepted(int d) {
-        int nx = x + dx[d], ny = y + dy[d];
+    void dfs(int crd_i, int crd_j) {
+        path.push_back({crd_i, crd_j});
+        score += points[crd_i][crd_j];
+        visited[tiles[crd_i][crd_j]] = 1;
         
-        if (nx < 0 || N <= nx || ny < 0 || N <= ny) return false;
-
-        if (visited.find(tiles.t[nx][ny]) != visited.end()) return false;
-
-        return true;
-    }
-
-    // 可能な操作と得られるスコアの組を返す
-    vector<pair<int, int>> legalActions() {
-        vector<pair<int, int>> ret;
-        for (int d = 0; d < 4; d++) {
-            if (isAccepted(d)) {
-                int plus = tiles.p[x + dx[d]][y + dy[d]];
-                ret.push_back({d, plus});
-            }
+        if (best_score < score) {
+            best_score = score;
+            best_path = path;
         }
-        return ret;
-    }
 
-    // opes[d] 方向に移動
-    void advance(int d) {
-        assert(isAccepted(d));
-        history.push_back(opes[d]);
-        x += dx[d];
-        y += dy[d];
-        score += tiles.p[x][y];
-        visited.insert(tiles.t[x][y]);
-    }
+        remaining_search_cnt--;
+        if (remaining_search_cnt == 0) return;
 
-    bool operator<(const State& other) const {
-        return score < other.score;
-    }
+        for (int d = 0; d < 4; d++) {
+            int ni = crd_i + dx[d], nj = crd_j + dy[d];
+            if (ni < 0 || N <= ni || nj < 0 || N <= nj) continue;
+            if (visited[tiles[ni][nj]]) continue;
 
-    bool operator>(const State& other) const {
-        return score > other.score;
-    }
-
-    bool isDone() {
-        auto vec = legalActions();
-        return vec.empty();
+            dfs(ni, nj);
+            if (remaining_search_cnt == 0) return;
+        }
+        path.pop_back();
+        score -= points[crd_i][crd_j];
+        visited[tiles[crd_i][crd_j]] = 0;
     }
 };
 
-struct Solver {
-    State state;
-    int beam_width = 10;
-    int beam_depth = 100;
+class dfsPartSolver {
+public:
+    array<bool, M> visited_;
+    vector<pair<int, int>> path_, best_path_;
+    int score_ = 0, best_score_ = 0;
+    int remaining_search_cnt_ = 0;
+    pair<int, int> goal_;
 
-    Solver() {
-        Tiles tiles;
-        tiles.input();
-        state = State(tiles);
+    void start(pair<int, int> start, pair<int, int> goal, array<bool, M> visited, int remaining_search_cnt) {
+        goal_ = goal;
+        best_path_.clear();
+        best_score_ = 0;
+        score_ = 0;
+        remaining_search_cnt_ = remaining_search_cnt;
+        visited_ = visited;
+        path_.clear();
+        dfs(start);
     }
 
-    int beamSearchAction() {
-        priority_queue<State> now_beam;
-        State best_state;
+    void dfs(pair<int, int> crd) {
+        auto [i, j] = crd;
+        if (!visited_[tiles[i][j]]) {
+            path_.push_back(crd);
+            score_ += points[i][j];
+            visited_[tiles[i][j]] = 1;
+        }
+        remaining_search_cnt_--;
+        if (remaining_search_cnt_ == 0) return;
 
-        now_beam.push(state);
-        for (int t = 0; t < beam_depth; t++) {
-            priority_queue<State> next_beam;
-            for (int i = 0; i < beam_width; i++) {
-                if (now_beam.empty()) break;
-                State now_state = now_beam.top();
-                now_beam.pop();
-
-                auto legal_actions = now_state.legalActions();
-                if (legal_actions.empty()) next_beam.push(now_state);
-
-                for (auto &action: legal_actions) {
-                    State next_state = now_state;
-                    next_state.advance(action.first);
-                    if (t == 0) next_state.first_action = action.first;
-                    next_beam.push(next_state);
+        if (crd != goal_) {
+            vector<pair<int, int>> legal_next_crds;
+            for (int d = 0; d < 4; d++) {
+                int ni = i + dx[d], nj = j + dy[d];
+                if (ni < 0 || N <= ni || nj < 0 || N <= nj) continue;
+                if (visited_[tiles[ni][nj]]) continue;
+                
+                if (make_pair(ni, nj) == goal_) {
+                    best_score_ = score_;
+                    best_path_ = path_;
+                    remaining_search_cnt_ = 0;
+                    return;
+                } else {
+                    legal_next_crds.push_back({ni, nj});
                 }
             }
-
-            now_beam = next_beam;
-            best_state = now_beam.top();
-
-            if (best_state.isDone()) {
-                // cout << "!!!!" << endl;
-                cout << t << " " << best_state.score << endl;
-                break;
+            shuffle(legal_next_crds.begin(), legal_next_crds.end(), rnd.mt_);
+            for (auto [ni, nj]: legal_next_crds) {
+                if (visited_[tiles[ni][nj]]) continue;
+                dfs({ni, nj});
+                if (remaining_search_cnt_ == 0) return;
             }
         }
-        return best_state.first_action;
+        path_.pop_back();
+        score_ -= points[i][j];
+        visited_[tiles[i][j]] = 0;
+    }
+};
+
+class State {
+    vector<pair<int, int>> path;
+
+    void solve_first_() {
+        dfsSolver dfssolver;
+        dfssolver.start();
+        path = dfssolver.path;
     }
 
-    int greedyAction() {
-        auto legal_actions = state.legalActions();
-        int best_score = 0, best_action = -1;
-        for (auto action: legal_actions) {
-            auto next_state = state;
-            next_state.advance(action.first);
-            if (best_score < next_state.score) {
-                best_score = next_state.score;
-                best_action = action.first;
-            }
+public:
+    void hillClimbing(int64_t time_threshold) {
+        auto timekeeper = TimeKeeperDouble(time_threshold);
+
+        solve_first_();
+
+        array<bool, M> visited;
+        dfsPartSolver dfs_part_solver;
+        for (int i = 0; i < path.size(); i++) {
+            visited[tiles[path[i].first][path[i].second]] = 1;
         }
-        return best_action;
-    }
 
+        while (1) {
+            timekeeper.setNowTime();
+            if (timekeeper.isTimeOver()) break;
+
+            int delete_path_len = rnd.nextInt((int)(1 + path.size() * 0.05));
+            int start_path_id = rnd.nextInt(path.size() - delete_path_len);
+            int end_path_id = start_path_id + delete_path_len;
+
+            auto next_visiteds = visited;
+
+            int remaining_search_cnt = 4 * delete_path_len;
+
+            int now_score = 0;
+            for (int i = start_path_id + 1; i <= end_path_id - 1; i++) {
+                now_score += points[path[i].first][path[i].second];
+                next_visiteds[tiles[path[i].first][path[i].second]] = 0;
+            }
+            dfs_part_solver.start(path[start_path_id], path[end_path_id],
+                                    next_visiteds, remaining_search_cnt);
+
+            int next_score = dfs_part_solver.best_score_;
+            int diff = next_score - now_score;
+            if (dfs_part_solver.best_path_.size() > 0 && diff > 0) {
+                // visitedsの更新
+                visited = dfs_part_solver.visited_;
+
+                // 今回生成した部分パスを挿入した全体パスを生成
+                vector<pair<int, int>> transitioned_path;
+                for (int i = 0; i <= start_path_id; i++) {
+                    transitioned_path.emplace_back(path[i]);
+                }
+                for (int i = 0; i < dfs_part_solver.best_path_.size(); i++) {
+                    transitioned_path.emplace_back(dfs_part_solver.best_path_[i]);
+                }
+                for (int i = end_path_id; i < path.size(); i++) {
+                    transitioned_path.emplace_back(path[i]);
+                }
+                path = transitioned_path;
+            }
+            
+        }
+    }
+public:
+    void input() {
+        cin >> start_i >> start_j;
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) cin >> tiles[i][j];
+        }
+
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) cin >> points[i][j];
+        }
+    }
     void solve() {
-        while (!state.isDone()) {
-            int action = beamSearchAction();
-            state.advance(action);
-        }
-        
-        cout << state.history << endl;
+        dfsSolver solver;
+        solver.start();
+        path = solver.path;
     }
-
+    void output() {
+        string ans;
+        for (int i = 1; i < path.size(); i++) {
+            int diff_i = path[i].first - path[i - 1].first, diff_j = path[i].second - path[i - 1].second;
+            if (diff_i == 1) ans.push_back('D');
+            else if (diff_i == -1) ans.push_back('U');
+            else if (diff_j == 1) ans.push_back('R');
+            else ans.push_back('L');
+        }
+        cout << ans << endl;
+    }
 };
 
 int main() {
-    Solver solver;
-    solver.solve();
+    State state;
+    state.input();
+    state.hillClimbing(1950);
+    state.output();
 }
