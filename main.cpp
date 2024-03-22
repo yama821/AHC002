@@ -6,7 +6,7 @@
 using namespace std;
 
 class Solver{
-    public: 
+    public:
         int starti;
         int startj;
         int tileMap[50][50];
@@ -20,7 +20,14 @@ class Solver{
         void Start(){
             GetInput();
             vector<bool> temp(maxTileNum + 1, false);
-            DFS(starti, startj, temp, 0, "");
+            string s = "A";
+            DFS(starti, startj, temp, 0, s);
+            GetOutput();
+        }
+        
+        void GetOutput(){
+            ans.erase(0, 1);
+            cout << ans << endl;
         }
 
         void GetInput(){
@@ -43,6 +50,7 @@ class Solver{
 
         void DFS(int nowi, int nowj, vector<bool> usedTile, int step, string route){
             bool flag = true;
+            cout << route << "dfs" << step << endl;
             
             for (int i=0; i<4; i++){
                 int tate = nowi+direction[i][0];
